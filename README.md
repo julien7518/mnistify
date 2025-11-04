@@ -104,8 +104,7 @@ python model_training/cnn.py
 
 ## Journal d'hyperparamètres
 
-Voir [`HYPERPARAMETERS.md`](/HYPERPARAMETERS.md).
+Voir [`HYPERPARAMETERS-CNN.md`](/HYPERPARAMETERS-CNN.md) pour l'entraînement du CNN.
+Voir [`HYPERPARAMETERS-MLP.md`](/HYPERPARAMETERS-MLP.md) pour l'entraînement du MLP.
 
 ## Rétrospective de projet
-
-Ajoutez ici 3-6 phrases sur les défis techniques rencontrés et les apprentissages (ex : limitations de tinygrad, adaptation des modèles pour WebGPU, compromis quant à la taille du modèle vs latence, etc.).

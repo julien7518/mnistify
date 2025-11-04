@@ -7,6 +7,8 @@ from tinygrad.helpers import trange
 from tinygrad.nn.datasets import mnist
 from tinygrad.nn.state import get_state_dict, load_state_dict, safe_load, safe_save
 from export_model import export_model
+import json
+import time
 
 import argparse
 import math
@@ -176,6 +178,7 @@ def train(
         return (model(normalize(X_test)).argmax(axis=1) == Y_test).mean() * 100
 
     test_acc, best_acc, best_since = float("nan"), 0, 0
+    t0 = time.time()
     for i in (t := trange(STEPS)):
         loss = train_step()
 
@@ -211,6 +214,51 @@ def train(
         with open(dir_name / f"{model_name}.js", "w") as text_file:
             text_file.write(prg)
         print(f"Model exported to {dir_name}")
+
+    t1 = time.time()
+    elapsed = t1 - t0
+
+    # --- compute basic classification metrics on test set and print them ---
+    # Use the best model if we saved and reloaded above, otherwise use current model
+    preds = model(normalize(X_test)).argmax(axis=1)
+    truths = Y_test
+
+    # accuracy in percent
+    accuracy = (preds == truths).mean().item() * 100
+
+    # compute per-class precision/recall/f1 and macro averages (basic)
+    num_classes = 10
+    precisions = []
+    recalls = []
+    f1s = []
+
+    for c in range(num_classes):
+        tp = ((preds == c) & (truths == c)).sum().item()
+        pp = (preds == c).sum().item()
+        ap = (truths == c).sum().item()
+
+        prec = (tp / pp) if pp > 0 else 0.0
+        rec = (tp / ap) if ap > 0 else 0.0
+        f1 = (2 * prec * rec / (prec + rec)) if (prec + rec) > 0 else 0.0
+
+        precisions.append(prec)
+        recalls.append(rec)
+        f1s.append(f1)
+
+    precision_macro = sum(precisions) / num_classes
+    recall_macro = sum(recalls) / num_classes
+    f1_macro = sum(f1s) / num_classes
+
+    metrics = {
+        "accuracy": float(accuracy),
+        "precision": float(precision_macro),
+        "recall": float(recall_macro),
+        "f1": float(f1_macro),
+        "time": float(elapsed),
+    }
+
+    # Machine-parseable line (JSON) for external tools like tune.py
+    print("FINAL_METRICS: " + json.dumps(metrics))
 
 
 if __name__ == "__main__":
