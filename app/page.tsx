@@ -72,12 +72,12 @@ export default function Home() {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    ctx.fillStyle = "black";
+    ctx.fillStyle = "white";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.lineWidth = 20;
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
-    ctx.strokeStyle = "white";
+    ctx.strokeStyle = "black";
   }, []);
 
   // Chargement du modèle sélectionné
@@ -139,7 +139,7 @@ export default function Home() {
     if (!tempCtx) return new Float32Array(784);
 
     // Redimensionner l'image à 28x28
-    tempCtx.fillStyle = "black";
+    tempCtx.fillStyle = "white";
     tempCtx.fillRect(0, 0, 28, 28);
     tempCtx.drawImage(canvas, 0, 0, 280, 280, 0, 0, 28, 28);
 
@@ -149,21 +149,21 @@ export default function Home() {
 
     const input = new Float32Array(784);
     for (let i = 0; i < 784; i++) {
-      const r = pixels[i * 4],
-        g = pixels[i * 4 + 1],
-        b = pixels[i * 4 + 2];
-      const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+      const r = pixels[i * 4];
+      const g = pixels[i * 4 + 1];
+      const b = pixels[i * 4 + 2];
+      const lum = 1 - ((0.299 * r + 0.587 * g + 0.114 * b) / 255);
       input[i] = lum * 2 - 1;
     }
 
-    // Construire une image de prévisualisation en niveaux de gris (pas d'inversion)
+    // Construire une image de prévisualisation en niveaux de gris (avec inversion)
     const invertedImageData = tempCtx.createImageData(28, 28);
     const invPixels = invertedImageData.data;
     for (let i = 0; i < 784; i++) {
-      const r = pixels[i * 4],
-        g = pixels[i * 4 + 1],
-        b = pixels[i * 4 + 2];
-      const gray = Math.round(0.299 * r + 0.587 * g + 0.114 * b);
+      const r = pixels[i * 4];
+      const g = pixels[i * 4 + 1];
+      const b = pixels[i * 4 + 2];
+      const gray = 255 - Math.round(0.299 * r + 0.587 * g + 0.114 * b);
       invPixels[i * 4] = gray;
       invPixels[i * 4 + 1] = gray;
       invPixels[i * 4 + 2] = gray;
@@ -250,10 +250,10 @@ export default function Home() {
     const { x, y } = getCoordinates(e);
 
     if (mode === "draw") {
-      ctx.strokeStyle = "white";
+      ctx.strokeStyle = "black";
       ctx.lineWidth = 20;
     } else {
-      ctx.strokeStyle = "black";
+      ctx.strokeStyle = "white";
       ctx.lineWidth = 40;
     }
 
@@ -297,7 +297,7 @@ export default function Home() {
     const ctx = canvas?.getContext("2d");
     if (!ctx || !canvas) return;
 
-    ctx.fillStyle = "black";
+    ctx.fillStyle = "white";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     // Effacer le canvas de prévisualisation
@@ -305,7 +305,7 @@ export default function Home() {
     if (previewCanvas) {
       const previewCtx = previewCanvas.getContext("2d");
       if (previewCtx) {
-        previewCtx.fillStyle = "black";
+        previewCtx.fillStyle = "white";
         previewCtx.fillRect(0, 0, 280, 280);
       }
     }
@@ -436,7 +436,7 @@ export default function Home() {
         </div>
 
         {/* Graphique des probabilités */}
-        <Card className="px-16">
+        <Card className="md:px-16">
           <CardHeader>
             <CardDescription className="flex justify-around">
               {chartData.some((d) => d.proba > 0) ? (
