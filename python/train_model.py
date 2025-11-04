@@ -1,13 +1,14 @@
 from enum import Enum
 from pathlib import Path
-from typing import Callable
+from typing import Callable, Literal
 from tinygrad import Tensor, TinyJit, nn
 from tinygrad.device import Device
-from tinygrad.helpers import getenv, trange
+from tinygrad.helpers import trange
 from tinygrad.nn.datasets import mnist
 from tinygrad.nn.state import get_state_dict, load_state_dict, safe_load, safe_save
 from export_model import export_model
 
+import argparse
 import math
 
 
@@ -89,7 +90,22 @@ def normalize(X: Tensor) -> Tensor:
     return X * 2 / 255 - 1
 
 
-class Model:
+class MLPModel:
+    def __init__(self):
+        self.layers: list[Callable[[Tensor], Tensor]] = [
+            lambda x: x.flatten(1),
+            nn.Linear(784, 512),
+            Tensor.silu,
+            nn.Linear(512, 512),
+            Tensor.silu,
+            nn.Linear(512, 10),
+        ]
+
+    def __call__(self, x: Tensor) -> Tensor:
+        return x.sequential(self.layers)
+
+
+class CNNModel:
     def __init__(self):
         self.layers: list[Callable[[Tensor], Tensor]] = [
             nn.Conv2d(1, 32, 5),
@@ -112,23 +128,29 @@ class Model:
         return x.sequential(self.layers)
 
 
-if __name__ == "__main__":
-    B = int(getenv("BATCH", 512))
-    LR = float(getenv("LR", 0.02))
-    LR_DECAY = float(getenv("LR_DECAY", 0.9))
-    PATIENCE = float(getenv("PATIENCE", 50))
+def train(
+    model_type: Literal["mlp", "cnn"],
+    save_model: bool,
+    B: int,
+    LR: float,
+    LR_DECAY: float,
+    PATIENCE: int,
+    STEPS: int,
+    ANGLE: float,
+    SCALE: float,
+    SHIFT: float,
+    SAMPLING: int,
+) -> None:
+    SAMPLING = SamplingMod(SAMPLING)
 
-    ANGLE = float(getenv("ANGLE", 15))
-    SCALE = float(getenv("SCALE", 0.1))
-    SHIFT = float(getenv("SHIFT", 0.1))
-    SAMPLING = SamplingMod(getenv("SAMPLING", SamplingMod.NEAREST.value))
+    model_name = model_type
+    dir_name = Path(__file__).parent.parent / "public" / model_name
+    if save_model:
+        dir_name.mkdir(exist_ok=True)
 
-    model_name = Path(__file__).name.split(".")[0]
-    dir_name = Path(__file__).parent.parent.parent / "public" / model_name
-    dir_name.mkdir(exist_ok=True)
+    model = MLPModel() if model_type == "mlp" else CNNModel()
 
     X_train, Y_train, X_test, Y_test = mnist()
-    model = Model()
     opt = nn.optim.Muon(nn.state.get_parameters(model))
 
     @TinyJit
@@ -154,34 +176,99 @@ if __name__ == "__main__":
         return (model(normalize(X_test)).argmax(axis=1) == Y_test).mean() * 100
 
     test_acc, best_acc, best_since = float("nan"), 0, 0
-    for i in (t := trange(getenv("STEPS", 70))):
+    for i in (t := trange(STEPS)):
         loss = train_step()
 
         if (i % 10 == 9) and (test_acc := get_test_acc().item()) > best_acc:
             best_since = 0
             best_acc = test_acc
-            state_dict = get_state_dict(model)
-            safe_save(state_dict, dir_name / f"{model_name}.safetensors")
+            if save_model:
+                state_dict = get_state_dict(model)
+                safe_save(state_dict, dir_name / f"{model_name}.safetensors")
             continue
 
         if (best_since := best_since + 1) % PATIENCE == PATIENCE - 1:
             best_since = 0
             opt.lr *= LR_DECAY
-            state_dict = safe_load(dir_name / f"{model_name}.safetensors")
-            load_state_dict(model, state_dict)
+            if save_model:
+                state_dict = safe_load(dir_name / f"{model_name}.safetensors")
+                load_state_dict(model, state_dict)
 
         t.set_description(
             f"lr: {opt.lr.item():2.2e}  loss: {loss.item():2.2f}  accuracy: {best_acc:2.2f}%"
         )
 
-    Device.DEFAULT = "WEBGPU"
-    model = Model()
-    state_dict = safe_load(dir_name / f"{model_name}.safetensors")
-    load_state_dict(model, state_dict)
-    input = Tensor.randn(1, 1, 28, 28)
-    prg, *_, state = export_model(
-        model, Device.DEFAULT.lower(), input, model_name=model_name
+    if save_model:
+        Device.DEFAULT = "WEBGPU"
+        model = MLPModel() if model_type == "mlp" else CNNModel()
+        state_dict = safe_load(dir_name / f"{model_name}.safetensors")
+        load_state_dict(model, state_dict)
+        input = Tensor.randn(1, 1, 28, 28)
+        prg, *_, state = export_model(
+            model, Device.DEFAULT.lower(), input, model_name=model_name
+        )
+        safe_save(state, dir_name / f"{model_name}.webgpu.safetensors")
+        with open(dir_name / f"{model_name}.js", "w") as text_file:
+            text_file.write(prg)
+        print(f"Model exported to {dir_name}")
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Train MLP or CNN model on MNIST")
+    parser.add_argument("-s", "--save", action="store_true", help="Save model outputs")
+    parser.add_argument(
+        "--model",
+        choices=["mlp", "cnn"],
+        required=True,
+        help="Select which model to train",
     )
-    safe_save(state, dir_name / f"{model_name}.webgpu.safetensors")
-    with open(dir_name / f"{model_name}.js", "w") as text_file:
-        text_file.write(prg)
+    parser.add_argument("--batch", type=int, default=512, help="Batch size")
+    parser.add_argument("--lr", type=float, default=0.02, help="Learning rate")
+    parser.add_argument(
+        "--lr_decay", type=float, default=0.9, help="Learning rate decay factor"
+    )
+    parser.add_argument(
+        "--patience", type=int, default=50, help="Patience for LR decay"
+    )
+    parser.add_argument("--steps", type=int, default=70, help="Training steps")
+    parser.add_argument(
+        "--angle", type=float, default=15, help="Max rotation angle for augmentation"
+    )
+    parser.add_argument(
+        "--scale", type=float, default=0.1, help="Max scale jitter for augmentation"
+    )
+    parser.add_argument(
+        "--shift", type=float, default=0.1, help="Max shift for augmentation"
+    )
+    parser.add_argument(
+        "--sampling",
+        type=int,
+        default=SamplingMod.NEAREST.value,
+        help="Sampling mode (0 bilinear, 1 nearest)",
+    )
+    args = parser.parse_args()
+
+    model = args.model
+
+    print()
+    print(f"Training {model.upper()} model")
+    print(f"Model saving is {'enabled' if args.save else 'disabled'}")
+    print()
+
+    train(
+        model_type=args.model,
+        save_model=args.save,
+        B=args.batch,
+        LR=args.lr,
+        LR_DECAY=args.lr_decay,
+        PATIENCE=args.patience,
+        STEPS=args.steps,
+        ANGLE=args.angle,
+        SCALE=args.scale,
+        SHIFT=args.shift,
+        SAMPLING=args.sampling,
+    )
+
+    print()
+    print("Training complete")
+    print()

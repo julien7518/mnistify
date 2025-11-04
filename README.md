@@ -39,6 +39,7 @@ Tout se passe côté client grâce à WebGPU - donc pas de serveur coûteux, jus
 
 ### 🧠 Machine Learning
 
+- **[Python 3.13.4](https://docs.python.org/3.13/)**
 - **[TinyGrad](https://github.com/tinygrad/tinygrad)** – Framework de deep learning.
 - **[WebGPU](https://www.w3.org/TR/webgpu/)** – API pour inférence côté client.
 - **[SafeTensors](https://huggingface.co/docs/safetensors/index)** – Format sécurisé pour le partage de modèles.
