@@ -1,6 +1,6 @@
 # Mnistify
 
-![App screenshot](public/screenshot.png)
+![App screenshot](public/og-image.png)
 
 Live demo: https://mnistify.vercel.app
 

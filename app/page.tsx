@@ -317,7 +317,7 @@ export default function Home() {
   };
 
   return (
-    <main className="min-h-screen flex items-start justify-center">
+    <div className="min-h-screen flex items-start justify-center">
       <div className="w-full max-w-4xl space-y-6 px-4 py-8">
         <Card className="w-full">
           <CardHeader>
@@ -448,6 +448,6 @@ export default function Home() {
           </CardHeader>
         </Card>
       </div>
-    </main>
+    </div>
   );
 }

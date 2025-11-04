@@ -16,6 +16,26 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "MNISTify",
   description: "Draw a digit, let MNISTify predict it. AI meets handwritten recognition in a simple, interactive demo.",
+  keywords: ["MNIST", "digit recognition", "AI", "machine learning", "handwriting recognition", "demo"],
+  authors: [{ name: "Julien Fernandes", url: "https://github.com/julien7518" }],
+  metadataBase: new URL("https://mnistify.vercel.app"),
+  openGraph: {
+    title: "MNISTify",
+    description: "Draw a digit and let the AI guess it. A playful MNIST demo.",
+    url: "https://mnistify.vercel.app",
+    siteName: "MNISTify",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "MNISTify Preview",
+      },
+    ],
+    locale: "en_US",
+    type: "website",
+  },
+  themeColor: "#ffffff",
 };
 
 export default function RootLayout({
