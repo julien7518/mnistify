@@ -72,11 +72,12 @@ export default function Home() {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    ctx.fillStyle = "white";
+    ctx.fillStyle = "black";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.lineWidth = 20;
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
+    ctx.strokeStyle = "white";
   }, []);
 
   // Chargement du modèle sélectionné
@@ -138,7 +139,7 @@ export default function Home() {
     if (!tempCtx) return new Float32Array(784);
 
     // Redimensionner l'image à 28x28
-    tempCtx.fillStyle = "white";
+    tempCtx.fillStyle = "black";
     tempCtx.fillRect(0, 0, 28, 28);
     tempCtx.drawImage(canvas, 0, 0, 280, 280, 0, 0, 28, 28);
 
@@ -148,24 +149,27 @@ export default function Home() {
 
     const input = new Float32Array(784);
     for (let i = 0; i < 784; i++) {
-      const pixelValue =
-        (pixels[i * 4] * 0.299) + (pixels[i * 4 + 1] * 0.587) + (pixels[i * 4 + 2] * 0.114);
-      input[i] = (255 - pixelValue) / 255.0;
+      const r = pixels[i * 4],
+        g = pixels[i * 4 + 1],
+        b = pixels[i * 4 + 2];
+      const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+      input[i] = lum * 2 - 1;
     }
 
-    // Construire une image inversée pour l'affichage (pour montrer ce que le modèle voit)
+    // Construire une image de prévisualisation en niveaux de gris (pas d'inversion)
     const invertedImageData = tempCtx.createImageData(28, 28);
     const invPixels = invertedImageData.data;
     for (let i = 0; i < 784; i++) {
-      const gray =
-        (pixels[i * 4] * 0.299) + (pixels[i * 4 + 1] * 0.587) + (pixels[i * 4 + 2] * 0.114);
-      const inv = 255 - Math.round(gray);
-      invPixels[i * 4] = inv;
-      invPixels[i * 4 + 1] = inv;
-      invPixels[i * 4 + 2] = inv;
+      const r = pixels[i * 4],
+        g = pixels[i * 4 + 1],
+        b = pixels[i * 4 + 2];
+      const gray = Math.round(0.299 * r + 0.587 * g + 0.114 * b);
+      invPixels[i * 4] = gray;
+      invPixels[i * 4 + 1] = gray;
+      invPixels[i * 4 + 2] = gray;
       invPixels[i * 4 + 3] = 255;
     }
-    // Remplacer le contenu du tempCanvas par l'image inversée
+    // Remplacer le contenu du tempCanvas par l'image de prévisualisation
     tempCtx.putImageData(invertedImageData, 0, 0);
 
     // Afficher l'aperçu 28x28 (agrandi à 280x280) en pixelated afin de montrer l'entrée du modèle
@@ -246,10 +250,10 @@ export default function Home() {
     const { x, y } = getCoordinates(e);
 
     if (mode === "draw") {
-      ctx.strokeStyle = "black";
+      ctx.strokeStyle = "white";
       ctx.lineWidth = 20;
     } else {
-      ctx.strokeStyle = "white";
+      ctx.strokeStyle = "black";
       ctx.lineWidth = 40;
     }
 
@@ -293,7 +297,7 @@ export default function Home() {
     const ctx = canvas?.getContext("2d");
     if (!ctx || !canvas) return;
 
-    ctx.fillStyle = "white";
+    ctx.fillStyle = "black";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     // Effacer le canvas de prévisualisation
@@ -301,7 +305,7 @@ export default function Home() {
     if (previewCanvas) {
       const previewCtx = previewCanvas.getContext("2d");
       if (previewCtx) {
-        previewCtx.fillStyle = "white";
+        previewCtx.fillStyle = "black";
         previewCtx.fillRect(0, 0, 280, 280);
       }
     }
