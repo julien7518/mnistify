@@ -153,7 +153,7 @@ def train(
     model = MLPModel() if model_type == "mlp" else CNNModel()
 
     X_train, Y_train, X_test, Y_test = mnist()
-    opt = nn.optim.Muon(nn.state.get_parameters(model))
+    opt = nn.optim.Muon(nn.state.get_parameters(model), lr=LR)
 
     @TinyJit
     @Tensor.train()
@@ -201,6 +201,9 @@ def train(
             f"lr: {opt.lr.item():2.2e}  loss: {loss.item():2.2f}  accuracy: {best_acc:2.2f}%"
         )
 
+    t1 = time.time()
+    elapsed = t1 - t0
+
     if save_model:
         Device.DEFAULT = "WEBGPU"
         model = MLPModel() if model_type == "mlp" else CNNModel()
@@ -215,50 +218,48 @@ def train(
             text_file.write(prg)
         print(f"Model exported to {dir_name}")
 
-    t1 = time.time()
-    elapsed = t1 - t0
+    else:
+        # --- compute basic classification metrics on test set and print them ---
+        # Use the best model if we saved and reloaded above, otherwise use current model
+        preds = model(normalize(X_test)).argmax(axis=1)
+        truths = Y_test
 
-    # --- compute basic classification metrics on test set and print them ---
-    # Use the best model if we saved and reloaded above, otherwise use current model
-    preds = model(normalize(X_test)).argmax(axis=1)
-    truths = Y_test
+        # accuracy in percent
+        accuracy = (preds == truths).mean().item() * 100
 
-    # accuracy in percent
-    accuracy = (preds == truths).mean().item() * 100
+        # compute per-class precision/recall/f1 and macro averages (basic)
+        num_classes = 10
+        precisions = []
+        recalls = []
+        f1s = []
 
-    # compute per-class precision/recall/f1 and macro averages (basic)
-    num_classes = 10
-    precisions = []
-    recalls = []
-    f1s = []
+        for c in range(num_classes):
+            tp = ((preds == c) & (truths == c)).sum().item()
+            pp = (preds == c).sum().item()
+            ap = (truths == c).sum().item()
 
-    for c in range(num_classes):
-        tp = ((preds == c) & (truths == c)).sum().item()
-        pp = (preds == c).sum().item()
-        ap = (truths == c).sum().item()
+            prec = (tp / pp) if pp > 0 else 0.0
+            rec = (tp / ap) if ap > 0 else 0.0
+            f1 = (2 * prec * rec / (prec + rec)) if (prec + rec) > 0 else 0.0
 
-        prec = (tp / pp) if pp > 0 else 0.0
-        rec = (tp / ap) if ap > 0 else 0.0
-        f1 = (2 * prec * rec / (prec + rec)) if (prec + rec) > 0 else 0.0
+            precisions.append(prec)
+            recalls.append(rec)
+            f1s.append(f1)
 
-        precisions.append(prec)
-        recalls.append(rec)
-        f1s.append(f1)
+        precision_macro = sum(precisions) / num_classes
+        recall_macro = sum(recalls) / num_classes
+        f1_macro = sum(f1s) / num_classes
 
-    precision_macro = sum(precisions) / num_classes
-    recall_macro = sum(recalls) / num_classes
-    f1_macro = sum(f1s) / num_classes
+        metrics = {
+            "accuracy": float(accuracy),
+            "precision": float(precision_macro),
+            "recall": float(recall_macro),
+            "f1": float(f1_macro),
+            "time": float(elapsed),
+        }
 
-    metrics = {
-        "accuracy": float(accuracy),
-        "precision": float(precision_macro),
-        "recall": float(recall_macro),
-        "f1": float(f1_macro),
-        "time": float(elapsed),
-    }
-
-    # Machine-parseable line (JSON) for external tools like tune.py
-    print("FINAL_METRICS: " + json.dumps(metrics))
+        # Machine-parseable line (JSON) for external tools like tune.py
+        print("FINAL_METRICS: " + json.dumps(metrics))
 
 
 if __name__ == "__main__":

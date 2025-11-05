@@ -1,5 +1,5 @@
 import subprocess
-import itertools
+import random
 import math
 import time
 import re
@@ -9,16 +9,17 @@ from pathlib import Path
 TRAIN_SCRIPT = "train_model.py"
 MODEL = "cnn"
 
-batch_sizes = [512, 1024, 2048]
-learning_rates = [0.01, 0.02, 0.05]
-steps = [80, 100, 150]
-learning_rate_decays = [0.8, 0.9]
+batch_sizes = [256, 512, 1024]
+learning_rates = [0.005, 0.01, 0.02, 0.05]
+steps = [50, 100, 150, 200, 500]
+learning_rate_decays = [0.85, 0.9, 0.95]
+patience_values = [10, 25, 50]
 
 log_file = Path(__file__).parent.parent / f"HYPERPARAMETERS-{MODEL.upper()}.md"
 
 
 def run_training(
-    batch: int, lr: float, steps: int, learning_rate_decays: float
+    batch: int, lr: float, steps: int, learning_rate_decays: float, patience: int
 ) -> tuple[dict[str, float], float]:
     cmd = [
         "python",
@@ -33,6 +34,8 @@ def run_training(
         str(steps),
         "--lr_decay",
         str(learning_rate_decays),
+        "--patience",
+        str(patience),
     ]
 
     print(f"Running: {cmd}")
@@ -43,7 +46,6 @@ def run_training(
 
     output = result.stdout
 
-    # Try to parse machine-readable metrics printed by train_model.py
     metrics = None
     m = re.search(r"FINAL_METRICS:\s*(\{.*\})", output)
     if m:
@@ -62,8 +64,8 @@ def append_markdown_header():
             f"This report summarizes all hyperparameter runs."
             f"\n\n"
             f"## Summary for {MODEL.upper()}\n\n"
-            f"| Run | Batch | LR | Steps | LR Decay | Time | Accuracy | Precision | Recall | F1 |\n"
-            f"|-----|------:|----:|------:|---------:|:----:|---------:|----------:|-------:|---:|\n"
+            f"| Batch | LR | Steps | LR Decay | Patience | Time | Accuracy | Precision | Recall | F1 |\n"
+            f"|------:|---:|------:|---------:|---------:|:----:|---------:|----------:|-------:|---:|\n"
         )
 
 
@@ -86,6 +88,7 @@ def log_markdown_row(
     lr: float,
     steps: int,
     lr_decay: float,
+    patience: int,
     metrics: dict[str, float],
     run_time: float,
 ) -> None:
@@ -96,43 +99,45 @@ def log_markdown_row(
     t_str = _format_time(run_time)
     with open(log_file, "a") as f:
         f.write(
-            f"| b{batch}_lr{lr}_s{steps}_a{lr_decay} | {batch} | {lr} | {steps} | {lr_decay} | {t_str} | {acc:.2f}% | {prec:.4f} | {rec:.4f} | {f1:.4f} |\n"
+            f"| {batch} | {lr} | {steps} | {lr_decay} | {patience} | {t_str} | **{acc:.2f}%** | {prec:.4f} | {rec:.4f} | {f1:.4f} |\n"
         )
 
 
-def main():
+def main(total_config=15):
     append_markdown_header()
-    best = (0, None)
 
-    combos = list(
-        itertools.product(batch_sizes, learning_rates, steps, learning_rate_decays)
-    )
+    mandatory_configs = [
+        (512, 0.01, 100, 0.9, 25),
+        (256, 0.005, 500, 0.9, 50),
+        (2048, 0.02, 200, 0.85, 25),
+    ]
+
+    def random_unique_configs(total_config):
+        configs = set(mandatory_configs)
+        while len(configs) < total_config:
+            cfg = (
+                random.choice(batch_sizes),
+                random.choice(learning_rates),
+                random.choice(steps),
+                random.choice(learning_rate_decays),
+                random.choice(patience_values),
+            )
+            configs.add(cfg)
+        return list(configs)
+
+    combos = random_unique_configs(total_config)
     print(f"Starting hyperparameter sweep: {len(combos)} runs\n")
 
-    for batch, lr, s, ang in combos:
-        metrics, elapsed = run_training(batch, lr, s, ang)
+    for batch, lr, s, lr_decay, pat in combos:
+        metrics, elapsed = run_training(batch, lr, s, lr_decay, pat)
         metrics = metrics or {}
         acc = metrics.get("accuracy", float("nan"))
-        # prefer the time reported by the training script (FINAL_METRICS) when available
         run_time = metrics.get("time", elapsed)
         print(
-            f"b{batch}_lr{lr}_s{s}_a{ang} -> Accuracy={acc:.2f}%  Time={run_time:.1f}s"
+            f"b{batch}_lr{lr}_s{s}_d{lr_decay}_p{pat} -> Accuracy={acc:.2f}%  Time={run_time:.1f}s"
         )
 
-        log_markdown_row(batch, lr, s, ang, metrics, run_time)
-
-        if not math.isnan(acc) and acc > best[0]:
-            best = (acc, f"b{batch}_lr{lr}_s{s}_a{ang}")
-
-    print(f"\nBEST MODEL: {best[1]} with {best[0]:.2f}% accuracy")
-
-    with open(log_file, "a") as f:
-        f.write(
-            f"\n---\n\n"
-            f"## Best Model\n\n"
-            f"**Run:** `{best[1]}`  \n"
-            f"**Accuracy:** {best[0]:.2f}%\n\n"
-        )
+        log_markdown_row(batch, lr, s, lr_decay, pat, metrics, run_time)
 
 
 if __name__ == "__main__":
