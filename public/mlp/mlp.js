@@ -222,7 +222,7 @@ var<workgroup> temp0: array<f32,128>;
   }
 }`;
 
-const r_10_16_32n1 = `fn nan() -> f32 { let bits = 0xffffffffu; return bitcast<f32>(bits); }
+const r_10_16_32 = `fn nan() -> f32 { let bits = 0xffffffffu; return bitcast<f32>(bits); }
 @group(0) @binding(0)
 var<uniform> INFINITY : f32;
 var<workgroup> temp0: array<f32,16>;
@@ -280,7 +280,7 @@ const setupNet = async (device, safetensor) => {
 
     const gpuReadBuffer0 = device.createBuffer({size:output0.size, usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ });
 
-    const kernels = [r_32_4_4_8_98, r_32_4_4_8_64, r_10_16_32n1];
+    const kernels = [r_32_4_4_8_98, r_32_4_4_8_64, r_10_16_32];
     const pipelines = await Promise.all(kernels.map(async (name, i) => {
       return await device.createComputePipelineAsync({
           layout: device.createPipelineLayout({

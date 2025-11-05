@@ -46,12 +46,30 @@ export default function Home() {
   // Initialisation de WebGPU
   useEffect(() => {
     const initWebGPU = async () => {
+
+      const userAgent = navigator.userAgent;
+      const isSafari = /^((?!chrome|android).)*safari/i.test(userAgent);
+
+      if (isSafari) {
+        const safariVersionMatch = userAgent.match(/Version\/(\d+)/);
+        const safariVersion = safariVersionMatch ? parseInt(safariVersionMatch[1]) : 0;
+
+        if (safariVersion < 26 && safariVersion > 0) {
+          setErrorMessage("Safari 26 or higher is required for WebGPU support");
+          alert("Safari 26 or higher is required for WebGPU support");
+          console.error("Safari version too old:", safariVersion);
+          return;
+        }
+      }
+
       if (!navigator.gpu) {
+        setErrorMessage("WebGPU not supported");
         console.error("WebGPU not supported");
         return;
       }
       const adapter = await navigator.gpu.requestAdapter();
       if (!adapter) {
+        setErrorMessage("No GPU adapter found");
         console.error("No GPU adapter found");
         return;
       }

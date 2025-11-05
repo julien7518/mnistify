@@ -20,6 +20,7 @@ Tout se passe côté client grâce à WebGPU - donc pas de serveur coûteux, jus
 📊 **Visualisation des performances**
 
 - Graphiques interactifs des prédictions
+- Visualisation de l'entrée du model
 - Comparaison des temps d'inférence entre modèles
 
 🔄 **Modèles disponibles**
@@ -46,7 +47,7 @@ Tout se passe côté client grâce à WebGPU - donc pas de serveur coûteux, jus
 
 ## Résumé des modèles
 
-### Meilleur MLP
+### Modèle utilisé pour le MLP
 
 | Type de couche | Détails                            |
 | -------------- | ---------------------------------- |
@@ -55,9 +56,13 @@ Tout se passe côté client grâce à WebGPU - donc pas de serveur coûteux, jus
 | Couche dense 2 | 512 neurones avec activation SiLU  |
 | Sortie         | 10 neurones                        |
 
-Précision finale (test): 94.49%
+| Batch | LR   | Steps | LR Decay | Patience |
+| ----- | ---- | ----- | -------- | -------- |
+| 4096  | 0.02 | 1000  | 0.9      | 50       |
 
-### Meilleur CNN
+**Précision finale** : 99.14%
+
+### Modèle utilisé pour le CNN
 
 | Type de couche | Détails                                   |
 | -------------- | ----------------------------------------- |
@@ -73,7 +78,20 @@ Précision finale (test): 94.49%
 | Aplatissement  | Conversion en vecteur 1D                  |
 | Couche dense   | 576 neurones vers 10 neurones             |
 
-Précision finale (test): 98.22%
+| Batch | LR    | Steps | LR Decay | Patience |
+| ----- | ----- | ----- | -------- | -------- |
+| 256   | 0.005 | 500   | 0.9      | 50       |
+
+**Précision finale** : 99.25%
+
+### Réflexions sur les tests et recherches
+
+De nombreux tests et recherches ont été réalisés pour le CNN. Au final, sur un dataset aussi petit, le MLP avec de bons paramètres (facilement trouvables) s'avère tout aussi performant tout en étant moins gourmand en ressources à l'entraînement. Les architectures de CNN testées proviennent de propositions d'architectures générées par des LLM. Nous avons commencé par une recherche exhaustive (grid search), mais celle-ci s'est révélée trop coûteuse en temps et en ressources. Nous sommes donc passés à une approche _forced+random search_, bien qu'il existe d'autres méthodes qui auraient pu être plus adaptées. Dans une démarche scientifique, il aurait été plus judicieux d'évaluer l'impact de chaque paramètre individuellement au lieu d'utiliser le random search, afin de comprendre pleinement l'influence de chaque hyperparamètre et tendre vers un optimum.
+
+### Journal d'hyperparamètres
+
+Voir [`HYPERPARAMETERS-CNN.md`](/HYPERPARAMETERS-CNN.md) pour les détails de l'entraînement du CNN.  
+Voir [`HYPERPARAMETERS-MLP.md`](/HYPERPARAMETERS-MLP.md) pour les détails de l'entraînement du MLP.
 
 ## Installation & exécution locale
 
@@ -93,19 +111,18 @@ npm run dev
 
 Ouvrez http://localhost:3000 pour voir l'application.
 
-Entraînements des modèles
+Exemple pour un entraînement du CNN :
 
 ```bash
 cd python
 python -m pip install -r requirements.txt
-python model_training/mlp.py
-python model_training/cnn.py
+python train_model.py --model cnn
 ```
 
-## Journal d'hyperparamètres
+Ajoutez l'argument `--save` pour mettre à jour le modèle sur la page web.
 
-Voir [`HYPERPARAMETERS.md`](/HYPERPARAMETERS.md).
+```bash
+python train_model.py -h
+```
 
-## Rétrospective de projet
-
-Ajoutez ici 3-6 phrases sur les défis techniques rencontrés et les apprentissages (ex : limitations de tinygrad, adaptation des modèles pour WebGPU, compromis quant à la taille du modèle vs latence, etc.).
+Pour avoir le détails des options possibles.
