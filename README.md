@@ -90,7 +90,7 @@ De nombreux tests et recherches ont été réalisés pour le CNN. Au final, sur 
 
 ### Journal d'hyperparamètres
 
-Voir [`HYPERPARAMETERS-CNN.md`](/HYPERPARAMETERS-CNN.md) pour les détails de l'entraînement du CNN.
+Voir [`HYPERPARAMETERS-CNN.md`](/HYPERPARAMETERS-CNN.md) pour les détails de l'entraînement du CNN.  
 Voir [`HYPERPARAMETERS-MLP.md`](/HYPERPARAMETERS-MLP.md) pour les détails de l'entraînement du MLP.
 
 ## Installation & exécution locale
@@ -118,6 +118,8 @@ cd python
 python -m pip install -r requirements.txt
 python train_model.py --model cnn
 ```
+
+Ajoutez l'argument `--save` pour mettre à jour le modèle sur la page web.
 
 ```bash
 python train_model.py -h
